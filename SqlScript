@@ -1,0 +1,21 @@
+Print 'Сценарий подготовки боевой базы к Stage запущен'
+print ' отключение исходящей почты'
+update SystemSettings set SettingValue = 'False' where ModuleUid = 'D13E29C4-3419-41FA-B86B-3BF88E7A3B71' and SettingKey = 'Enabled'
+print ' базовый url системы http://elma.oos.ru -> http://elmatst'
+update SystemSettings set SettingValue = 'http://elmatst' where ModuleUid = 'E0FE14E4-FF52-435C-85F0-5E92A5D11C6B' and SettingKey = 'ApplicationBaseUrl'
+print ' распубликация автоматически запускаемых процессов'
+update ProcessHeader set Published = null where Id in (select ProcessHeader from StartProcessSchedulerJob)
+print ' закрытие активных задач по всем процессам'
+update taskbase 
+set [Status] = 'fd7993c6-99c7-4b23-83cc-0f576a63c144', EndWorkDate = CURRENT_TIMESTAMP 
+where WorkflowBookmark IN
+ (select [ID] from WORKFLOWBOOKMARK where INSTANCE IN
+	(select [ID] from WorkflowInstance WHERE [Status] = 1))
+AND EndWorkDate is null
+print ' прерывание всех активных процессов'
+update WorkflowInstance set [Status] = 4 where [Status] = 1
+print ' очистка очереди упавших процессов, таймеров'
+delete from WorkflowQueueItem
+delete from SchedulerJobRunInfo where [JobName] like '%в экземпляре%'
+delete from SchedulerTaskJob where [Name] like '%в экземпляре%'
+delete from  SchedulerTask where [Name] like '%в экземпляре%'
